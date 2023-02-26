@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-def slideExtract(image, hog_desc, windowSize=(64, 64),channel="RGB",step=30):
+def slideExtract(image, hog_desc, windowSize=(64, 64), channel="RGB",step=30):
     
     # Converting to grayscale
     if channel == "RGB":

@@ -22,6 +22,8 @@ from preprocess.data_info import get_pos_and_neg
 from preprocess.hog import return_hog_descriptor, get_hog_img
 from sliding_window.detect import detect 
 
+#params we can play on: all params of get_pos_and_neg, neg_max_proba and pos_max_proba
+
 if __name__ == "__main__":
     #starting block
     df_ground_truth = pd.read_csv('train.csv')
@@ -30,13 +32,14 @@ if __name__ == "__main__":
     N = len(df_ground_truth)
 
     #get images block
-    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth)
+    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0.05, neg_img_per_frame=12, dx_neg_base=30)
 
+    winSize = (64, 64)
     #get hog block
-    hog_desc = return_hog_descriptor()
+    hog_desc = return_hog_descriptor(winSize)
 
     #apply hog block
-    train_pos_hog, train_neg_hog = get_hog_img(hog_desc, train_pos_img, train_neg_img)
+    train_pos_hog, train_neg_hog = get_hog_img(hog_desc, train_pos_img, train_neg_img, winSize)
 
     #get dataset block
     train_pos_labels = np.ones(len(train_pos_img))
@@ -74,21 +77,23 @@ if __name__ == "__main__":
 
 
     start = time.time()
-    detected, bounding_boxes = detect(image, hog_desc, clf)
+    detected, bounding_boxes = detect(image, hog_desc, clf, winSize, neg_max_proba=0.8, pos_max_proba=0.4, step=25)
     print(time.time() - start)
     plt.imshow(detected)
     plt.show()
 
-    get_pred = False 
+    get_pred = True 
     if get_pred:
         test_files = sorted(os.listdir('test/'))
         print(len(test_files))
         rows = []
 
         for i, file_name in enumerate(test_files):
-            image = np.asarray(PIL.Image.open('/content/drive/MyDrive/vic_class/assignment2/test/test/'+file_name))
-            _, bounding_boxes = detect(image)
+            image = np.asarray(PIL.Image.open('test/'+file_name))
+            _, bounding_boxes = detect(image, hog_desc, clf, winSize, neg_max_proba=0.8, pos_max_proba=0.4, step=25)
             rle = run_length_encoding(bounding_boxes_to_mask(bounding_boxes, H, W))
             rows.append(['test/' + file_name, rle])
             if i%10 == 0:
                 print(i)
+        df_prediction = pd.DataFrame(columns=['Id', 'Predicted'], data=rows).set_index('Id')
+        df_prediction.to_csv('predicted_cars.csv')
