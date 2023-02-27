@@ -34,8 +34,8 @@ class Heatmap():
         
         # Scaling between 0 and 255
         self.mask = np.asarray(self.mask * 255).astype(np.uint8)
-        self.mask[0:80, :] = 0
-        self.mask[680:720, :] = 0
+        self.mask[0:120, :] = 0
+        self.mask[620:720, :] = 0
         # Now we'll threshold our mask, if a value is higher than 170, it will be white else
         # it will be black
         self.mask = cv2.inRange(self.mask,170,255)

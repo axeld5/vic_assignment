@@ -10,15 +10,15 @@ import cv2
 import pickle
 
 from glob import glob
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 from sklearn.metrics import accuracy_score,confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, jaccard_score
 
 from preprocess.utils import run_length_encoding, bounding_boxes_to_mask
-from preprocess.data_info import get_pos_and_neg
+from preprocess.data_info import get_pos_and_neg, get_bin_masks, get_bin_mask_from_bbox_list
 from preprocess.hog import return_hog_descriptor, get_hog_img
 from sliding_window.detect import detect 
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     N = len(df_ground_truth)
 
     #get images block
-    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0.05, neg_img_per_frame=12, dx_neg_base=30)
+    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=5, method="random", dx_neg_base=30, dy_neg_base=20, max_size=64*64, add_cars_test=False, add_cars_train=False)
 
     winSize = (64, 64)
     #get hog block
@@ -61,11 +61,13 @@ if __name__ == "__main__":
 
     #train model block
 
-    clf = HistGradientBoostingClassifier().fit(x_train, y_train)
+    #clf = HistGradientBoostingClassifier().fit(x_train, y_train)
+    start = time.time()
+    clf = SVC(probability=True).fit(x_train, y_train)
     # We'll use Cross Validation Grid Search to find best parameters.
     # Classifier will be trained using each parameter 
     clf.fit(x_train,y_train)
-
+    print(time.time() - start)
     y_pred = clf.predict(x_test)
     print("Accuracy score of model is ",f1_score(y_pred=y_pred,y_true=y_test)*100)
 
@@ -74,15 +76,24 @@ if __name__ == "__main__":
 
     values = df_ground_truth.values.tolist()
     image = np.asarray(PIL.Image.open(values[0][0]))
+    train_bin_mask = get_bin_masks(df_ground_truth)[0] 
 
 
     start = time.time()
-    detected, bounding_boxes = detect(image, hog_desc, clf, winSize, neg_max_proba=0.8, pos_max_proba=0.4, step=25)
+    detected, bounding_boxes = detect(image, hog_desc, clf, winSize, neg_max_proba=0.9, pos_max_proba=0.1, step=25)
     print(time.time() - start)
+    pred_bin_mask = get_bin_mask_from_bbox_list(bounding_boxes)
+    print(jaccard_score(train_bin_mask, pred_bin_mask, average="micro"))
     plt.imshow(detected)
     plt.show()
 
-    get_pred = True 
+    test_files = sorted(os.listdir('test/'))
+    test_img = np.asarray(PIL.Image.open('test/'+test_files[0]))
+    detected, bounding_boxes = detect(test_img, hog_desc, clf, winSize, neg_max_proba=0.9, pos_max_proba=0.1, step=25)
+    plt.imshow(detected)
+    plt.show()
+
+    """get_pred = True
     if get_pred:
         test_files = sorted(os.listdir('test/'))
         print(len(test_files))
@@ -90,10 +101,10 @@ if __name__ == "__main__":
 
         for i, file_name in enumerate(test_files):
             image = np.asarray(PIL.Image.open('test/'+file_name))
-            _, bounding_boxes = detect(image, hog_desc, clf, winSize, neg_max_proba=0.8, pos_max_proba=0.4, step=25)
+            _, bounding_boxes = detect(image, hog_desc, clf, winSize, neg_max_proba=0.6, pos_max_proba=0.4, step=25)
             rle = run_length_encoding(bounding_boxes_to_mask(bounding_boxes, H, W))
             rows.append(['test/' + file_name, rle])
             if i%10 == 0:
                 print(i)
         df_prediction = pd.DataFrame(columns=['Id', 'Predicted'], data=rows).set_index('Id')
-        df_prediction.to_csv('predicted_cars.csv')
+        df_prediction.to_csv('predicted_cars.csv')"""
