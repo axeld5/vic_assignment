@@ -3,7 +3,7 @@ import cv2
 def return_hog_descriptor(winSize=(64, 64)):
     winSize = winSize
     blockSize = (16,16)
-    blockStride = (8,8)
+    blockStride = (16,16)
     cellSize = (8,8)
     nbins = 9
     derivAperture = 1
@@ -15,6 +15,12 @@ def return_hog_descriptor(winSize=(64, 64)):
     hog_desc = cv2.HOGDescriptor(winSize,blockSize,blockStride,cellSize,nbins,derivAperture,winSigma,
                             histogramNormType,L2HysThreshold,gammaCorrection,nlevels)
     return hog_desc
+
+def get_hog_features(hog_desc, img, winSize=(64,64)):
+    res_img = cv2.cvtColor(cv2.resize(img, winSize),cv2.COLOR_RGB2GRAY)
+    features = hog_desc.compute(res_img)
+    return features
+
 
 def get_hog_img(hog_desc, train_pos_img, train_neg_img, winSize=(64,64)):
     train_pos_hog = [0]*len(train_pos_img)

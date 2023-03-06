@@ -3,10 +3,11 @@ import cv2
 from .slide_extract import slideExtract 
 from .heatmap import Heatmap
 
-def detect(image, hog_desc, clf, winSize=(64, 64), neg_max_proba=0.5, pos_max_proba=0.5, step=30, max_size=40*40):
+def detect(image, hog_desc, sift_tools, use_hog, use_sift, use_color, use_spatial, clf, winSize=(64, 64), neg_max_proba=0.5, pos_max_proba=0.5, step=30, max_size=40*40):
     
     # Extracting features and initalizing heatmap
-    coords,features = slideExtract(image, hog_desc, winSize, step=step)
+    coords,features = slideExtract(image, hog_desc=hog_desc, sift_tools=sift_tools, winSize=winSize, step=step, 
+                                   use_hog=use_hog, use_sift=use_sift, use_spatial=use_spatial, use_color=use_color)
     htmp = Heatmap(image)
     
     for i in range(len(features)):

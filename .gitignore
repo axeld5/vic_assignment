@@ -4,3 +4,5 @@ cars_test
 cars_train
 __pycache__
 predicted_cars.csv
+other_non_vehicles
+other_vehicles

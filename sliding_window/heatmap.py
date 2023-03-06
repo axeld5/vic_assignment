@@ -13,13 +13,13 @@ class Heatmap():
     # Increase value of region function will add some heat to heatmap
     def incValOfReg(self,coords):
         w1,w2,h1,h2 = coords
-        self.mask[h1:h2,w1:w2] = self.mask[h1:h2,w1:w2] + 30
+        self.mask[h1:h2,w1:w2] = self.mask[h1:h2,w1:w2] + 1
     
     # Decrease value of region function will remove some heat from heatmap
     # We'll use this function if a region considered negative
     def decValOfReg(self,coords):
         w1,w2,h1,h2 = coords
-        self.mask[h1:h2,w1:w2] = self.mask[h1:h2,w1:w2] - 30
+        self.mask[h1:h2,w1:w2] = self.mask[h1:h2,w1:w2] - 1
     
     def compileHeatmap(self):
         
@@ -31,11 +31,11 @@ class Heatmap():
         
         self.mask = scaler.fit_transform(self.mask)
         
+        self.mask[0:120, :] = np.min(self.mask)
+        self.mask[620:720, :] = np.min(self.mask)
         
         # Scaling between 0 and 255
         self.mask = np.asarray(self.mask * 255).astype(np.uint8)
-        self.mask[0:120, :] = 0
-        self.mask[620:720, :] = 0
         # Now we'll threshold our mask, if a value is higher than 170, it will be white else
         # it will be black
         self.mask = cv2.inRange(self.mask,170,255)

@@ -2,25 +2,22 @@ import numpy as np
 import pandas as pd
 import os
 import time
-import random
 import matplotlib.pyplot as plt 
-import seaborn as sns
 import PIL
 import cv2
-import pickle
 
-from glob import glob
 from sklearn.svm import SVC, LinearSVC
-from sklearn.metrics import accuracy_score,confusion_matrix
 from sklearn.model_selection import train_test_split
-from sklearn.model_selection import GridSearchCV
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.metrics import f1_score, jaccard_score
 
 from preprocess.utils import run_length_encoding, bounding_boxes_to_mask
-from preprocess.data_info import get_pos_and_neg, get_bin_masks, get_bin_mask_from_bbox_list
-from preprocess.hog import return_hog_descriptor, get_hog_img
+from preprocess.data_info import get_pos_and_neg, get_bin_masks, get_bin_mask_from_bbox_list, get_features
+from preprocess.hog_features import return_hog_descriptor
+from preprocess.sift_features import build_vocabulary, load_vocabulary
 from sliding_window.detect import detect 
+from evaluate_jaccard import evaluate_jaccard
+from ensemble_classifier import EnsembleClassifier
 
 #params we can play on: all params of get_pos_and_neg, neg_max_proba and pos_max_proba
 
@@ -32,14 +29,26 @@ if __name__ == "__main__":
     N = len(df_ground_truth)
 
     #get images block
-    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=5, method="random", dx_neg_base=30, dy_neg_base=20, max_size=64*64, add_cars_test=False, add_cars_train=False)
+    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=12, max_size=40*40, add_cars_test=True, add_cars_train=True, add_other_cars=False)
 
     winSize = (64, 64)
     #get hog block
     hog_desc = return_hog_descriptor(winSize)
+    sift = cv2.SIFT_create()
+    vocab_size = 250
+    #vocab = load_vocabulary("vocab.pkl")
+    vocab = build_vocabulary(sift, train_pos_img + train_neg_img, vocab_size=vocab_size)
+    print("vocab done")
+
+    sift_tools = [sift, vocab, vocab_size]
+    use_hog = True 
+    use_sift = True 
+    use_spatial = True 
+    use_color = True
 
     #apply hog block
-    train_pos_hog, train_neg_hog = get_hog_img(hog_desc, train_pos_img, train_neg_img, winSize)
+    train_pos_features, train_neg_features = get_features(train_pos_img, train_neg_img, hog_desc, sift_tools=sift_tools, winSize=winSize,
+                                                          use_hog=use_hog, use_sift=use_sift, use_spatial=use_spatial, use_color=use_color)
 
     #get dataset block
     train_pos_labels = np.ones(len(train_pos_img))
@@ -47,7 +56,7 @@ if __name__ == "__main__":
     train_neg_labels = np.zeros(len(train_neg_img))
     print(len(train_neg_labels))
 
-    x = np.asarray(train_pos_hog + train_neg_hog)
+    x = np.asarray(train_pos_features + train_neg_features)
     y = np.asarray(list(train_pos_labels) + list(train_neg_labels))
 
     print("Shape of image set",x.shape)
@@ -60,13 +69,19 @@ if __name__ == "__main__":
     print(y_test.shape)
 
     #train model block
-
-    #clf = HistGradientBoostingClassifier().fit(x_train, y_train)
+    
     start = time.time()
-    clf = SVC(probability=True).fit(x_train, y_train)
+    clf = HistGradientBoostingClassifier().fit(x_train, y_train)
+    #clf = RandomForestClassifier().fit(x_train, y_train)
+    #clf = SVC().fit(x_train, y_train)
+    #clf = SVC(probability=True).fit(x_train, y_train)
+    #clf = LinearSVC(max_iter=10000).fit(x_train, y_train)
     # We'll use Cross Validation Grid Search to find best parameters.
     # Classifier will be trained using each parameter 
-    clf.fit(x_train,y_train)
+    #clf = EnsembleClassifier(use_svm=False, use_rf=True, use_xgb=True)
+    #clf.fit(x_train,y_train)
+    #clf.save_models()
+    #clf.load_models()
     print(time.time() - start)
     y_pred = clf.predict(x_test)
     print("Accuracy score of model is ",f1_score(y_pred=y_pred,y_true=y_test)*100)
@@ -76,20 +91,31 @@ if __name__ == "__main__":
 
     values = df_ground_truth.values.tolist()
     image = np.asarray(PIL.Image.open(values[0][0]))
-    train_bin_mask = get_bin_masks(df_ground_truth)[0] 
+    train_bin_masks = get_bin_masks(df_ground_truth)
 
+    step = 10
+    neg_max_proba = 0.63
+    pos_max_proba = 0.37
 
     start = time.time()
-    detected, bounding_boxes = detect(image, hog_desc, clf, winSize, neg_max_proba=0.9, pos_max_proba=0.1, step=25)
+    detected, bounding_boxes = detect(image, hog_desc, sift_tools, use_hog=use_hog, use_spatial=use_spatial, use_sift=use_sift, use_color=use_color,
+                        clf=clf, winSize=winSize, neg_max_proba=neg_max_proba, pos_max_proba=pos_max_proba, step=step)
     print(time.time() - start)
     pred_bin_mask = get_bin_mask_from_bbox_list(bounding_boxes)
-    print(jaccard_score(train_bin_mask, pred_bin_mask, average="micro"))
+    print(jaccard_score(train_bin_masks[0], pred_bin_mask, average="micro"))
     plt.imshow(detected)
     plt.show()
 
+    n_test = 100 
+    img_list = [np.asarray(PIL.Image.open(values[i*5][0])) for i in range(n_test)]
+    train_bin_mask = [train_bin_masks[i*5] for i in range(n_test)]
+    print(evaluate_jaccard(img_list, train_bin_mask, hog_desc, sift_tools, use_hog=use_hog, use_spatial=use_spatial, use_sift=use_sift, use_color=use_color,
+                        clf=clf, winSize=winSize, neg_max_proba=neg_max_proba, pos_max_proba=pos_max_proba, step=step))
+
     test_files = sorted(os.listdir('test/'))
     test_img = np.asarray(PIL.Image.open('test/'+test_files[0]))
-    detected, bounding_boxes = detect(test_img, hog_desc, clf, winSize, neg_max_proba=0.9, pos_max_proba=0.1, step=25)
+    detected, bounding_boxes = detect(test_img, hog_desc, sift_tools, use_hog=use_hog, use_spatial=use_spatial, use_sift=use_sift, use_color=use_color,
+                        clf=clf, winSize=winSize, neg_max_proba=neg_max_proba, pos_max_proba=pos_max_proba, step=step)
     plt.imshow(detected)
     plt.show()
 
