@@ -12,10 +12,10 @@ from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassif
 from sklearn.metrics import f1_score, jaccard_score
 
 from preprocess.utils import run_length_encoding, bounding_boxes_to_mask
-from preprocess.data_info import get_pos_and_neg, get_bin_masks, get_bin_mask_from_bbox_list, get_features
+from preprocess.persp_data_info import get_pos_and_neg, get_bin_masks, get_bin_mask_from_bbox_list, get_features
 from preprocess.hog_features import return_hog_descriptor
 from preprocess.sift_features import build_vocabulary, load_vocabulary
-from sliding_window.detect import detect 
+from sliding_window.perps_detect import detect 
 from evaluate_jaccard import evaluate_jaccard
 from ensemble_classifier import EnsembleClassifier
 
@@ -29,7 +29,9 @@ if __name__ == "__main__":
     N = len(df_ground_truth)
 
     #get images block
-    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=12, max_size=40*40, add_cars_test=True, add_cars_train=True, add_other_cars=False)
+    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=5, max_size=30*30, add_cars_test=False, add_cars_train=False, add_other_cars=False)
+    print("imgs secured")
+
 
     winSize = (64, 64)
     #get hog block
@@ -37,12 +39,13 @@ if __name__ == "__main__":
     sift = cv2.SIFT_create()
     vocab_size = 250
     #vocab = load_vocabulary("vocab.pkl")
-    vocab = build_vocabulary(sift, train_pos_img + train_neg_img, vocab_size=vocab_size)
+    #vocab = build_vocabulary(sift, train_pos_img + train_neg_img, vocab_size=vocab_size)
+    vocab = None
     print("vocab done")
 
     sift_tools = [sift, vocab, vocab_size]
     use_hog = True 
-    use_sift = True 
+    use_sift = False 
     use_spatial = True 
     use_color = True
 
@@ -94,28 +97,27 @@ if __name__ == "__main__":
     train_bin_masks = get_bin_masks(df_ground_truth)
 
     step = 10
-    neg_max_proba = 0.63
-    pos_max_proba = 0.37
+    pos_max_proba = 0.5
 
     start = time.time()
     detected, bounding_boxes = detect(image, hog_desc, sift_tools, use_hog=use_hog, use_spatial=use_spatial, use_sift=use_sift, use_color=use_color,
-                        clf=clf, winSize=winSize, neg_max_proba=neg_max_proba, pos_max_proba=pos_max_proba, step=step)
+                        clf=clf, winSize=winSize, pos_max_proba=pos_max_proba, step=step)
     print(time.time() - start)
     pred_bin_mask = get_bin_mask_from_bbox_list(bounding_boxes)
     print(jaccard_score(train_bin_masks[0], pred_bin_mask, average="micro"))
     plt.imshow(detected)
     plt.show()
 
-    n_test = 100 
+    """n_test = 100 
     img_list = [np.asarray(PIL.Image.open(values[i*5][0])) for i in range(n_test)]
     train_bin_mask = [train_bin_masks[i*5] for i in range(n_test)]
     print(evaluate_jaccard(img_list, train_bin_mask, hog_desc, sift_tools, use_hog=use_hog, use_spatial=use_spatial, use_sift=use_sift, use_color=use_color,
-                        clf=clf, winSize=winSize, neg_max_proba=neg_max_proba, pos_max_proba=pos_max_proba, step=step))
+                        clf=clf, winSize=winSize, pos_max_proba=pos_max_proba, step=step))"""
 
     test_files = sorted(os.listdir('test/'))
     test_img = np.asarray(PIL.Image.open('test/'+test_files[0]))
     detected, bounding_boxes = detect(test_img, hog_desc, sift_tools, use_hog=use_hog, use_spatial=use_spatial, use_sift=use_sift, use_color=use_color,
-                        clf=clf, winSize=winSize, neg_max_proba=neg_max_proba, pos_max_proba=pos_max_proba, step=step)
+                        clf=clf, winSize=winSize, pos_max_proba=pos_max_proba, step=step)
     plt.imshow(detected)
     plt.show()
 
