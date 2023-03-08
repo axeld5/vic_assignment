@@ -3,26 +3,17 @@ import cv2
 from .perps_extract import slideExtract 
 from .perps_heatmap import Heatmap
 
-def detect(image, hog_desc, sift_tools, use_hog, use_sift, use_color, use_spatial, clf, winSize=(64, 64), pos_max_proba=0.9, step=30, max_size=40*40):
+def detect(image, hog_desc, use_hog, use_color, use_spatial, clf, threshold=0.63, max_size=30*30):
     
     # Extracting features and initalizing heatmap
-    coords,features = slideExtract(image, hog_desc=hog_desc, sift_tools=sift_tools, winSize=winSize, step=step, 
-                                   use_hog=use_hog, use_sift=use_sift, use_spatial=use_spatial, use_color=use_color)
-    htmp = Heatmap(image)
+    coords,features = slideExtract(image, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial, use_color=use_color)
+    htmp = Heatmap(image, threshold)
     
     for i in range(len(features)):
         # If region is positive then add some heat
-        try:
-            proba = clf.predict_proba([features[i]])
-            if proba[0][1] > pos_max_proba:
-                htmp.incValOfReg(coords[i])
-        except: 
-            decision = clf.predict([features[i]])
-            if decision[0] == 1:
-                htmp.incValOfReg(coords[i])
-                # Else remove some heat
-            else:
-                htmp.decValOfReg(coords[i])
+        decision = clf.predict([features[i]])
+        if decision[0] == 1:
+            htmp.incValOfReg(coords[i])
 
     # Compiling heatmap
     mask = htmp.compileHeatmap()
