@@ -10,6 +10,7 @@ from sklearn.svm import SVC, LinearSVC
 from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.metrics import f1_score, jaccard_score
+from sklearn.preprocessing import StandardScaler
 
 from preprocess.utils import run_length_encoding, bounding_boxes_to_mask
 from preprocess.persp_data_info import get_pos_and_neg, get_bin_masks, get_bin_mask_from_bbox_list, get_features
@@ -24,7 +25,7 @@ if __name__ == "__main__":
     N = len(df_ground_truth)
 
     #get images block
-    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=12, max_size=30*30, add_cars_test=True, add_cars_train=True, add_other_cars=False)
+    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=12, max_size=40*40, add_cars_test=True, add_cars_train=True, add_other_cars=False)
     print("imgs secured")
 
 
@@ -47,6 +48,7 @@ if __name__ == "__main__":
     print(len(train_neg_labels))
 
     x = np.asarray(train_pos_features + train_neg_features)
+    x = StandardScaler().fit_transform(x)
     y = np.asarray(list(train_pos_labels) + list(train_neg_labels))
 
     print("Shape of image set",x.shape)
@@ -62,8 +64,32 @@ if __name__ == "__main__":
     
     start = time.time()
     clf = HistGradientBoostingClassifier().fit(x_train, y_train)
-    #clf = SVC().fit(x_train, y_train)
+    #clf = LinearSVC(max_iter=100000).fit(x_train, y_train)
+    #clf = SVC(gamma="auto")
+    clf.fit(x_train, y_train)
+    #clf = SVC(C=100, gamma="auto").fit(x_train, y_train)
     #clf = SVC(probability=True).fit(x_train, y_train)
     print(time.time() - start)
     y_pred = clf.predict(x_test)
     print("Accuracy score of model is ",f1_score(y_pred=y_pred,y_true=y_test)*100)
+    #get test_indices
+    plot_img = False
+    if plot_img:
+        relation_dic = {}
+        for i in range(len(x_test)):
+            for j in range(len(x)): 
+                if np.sum(x_test[i] - x[j]) == 0:
+                    if j > len(train_pos_img):
+                        relation_dic[i] = ["neg", j-len(train_pos_img)]
+                    else:
+                        relation_dic[i] = ["pos", j]
+        for i in range(len(x_test)):
+            if y_test[i] == y_pred[i]:
+                if relation_dic[i][0] == "pos":
+                    idx = relation_dic[i][1]
+                    plt.imshow(train_pos_img[idx])
+                    plt.show()
+                else:
+                    idx = relation_dic[i][1]
+                    plt.imshow(train_neg_img[idx])
+                    plt.show()
