@@ -26,11 +26,11 @@ if __name__ == "__main__":
     W = 1280
     H = 720
     N = len(df_ground_truth)
-    max_size=30*30
+    max_size=40*40
 
     #get images block
     start = time.time()
-    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=5, max_size=max_size, add_other_cars=False, add_other_non_cars=False)
+    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=6, max_size=max_size, add_other_cars=True, add_other_non_cars=True, flip=False)
     print(time.time() - start)
     print("imgs secured")
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     hog_desc = return_hog_descriptor(winSize)
 
     use_hog = True 
-    use_spatial = False
+    use_spatial = True
     use_color = True
 
     #apply hog block
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     
     start = time.time()
     #clf = HistGradientBoostingClassifier()
-    clf = XGBClassifier()
+    clf = XGBClassifier(max_depth=6, learning_rate=0.07, n_estimators=500, colsample_bytree=0.7)
     #clf = LinearSVC()
     #clf = SVC()
     #clf = SVC(probability=True)
@@ -91,8 +91,8 @@ if __name__ == "__main__":
     image = np.asarray(PIL.Image.open(values[idx][0]))
     train_bin_masks = get_bin_masks(df_ground_truth)
     threshold_list = np.linspace(5, 50, 10, endpoint=True)
-    threshold = 5
-    rescale_params = [0.25, 0.5, 0.75, 1, 2]
+    threshold = 2
+    rescale_params = [0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2]
     start = time.time()
     detected, bounding_boxes = detect(image, rescale_params, scaler=scaler, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial,use_color=use_color,
                                     clf=clf, threshold=threshold, max_size=max_size, plot=True)

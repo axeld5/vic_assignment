@@ -1,5 +1,6 @@
 import numpy as np 
 import PIL
+import matplotlib.pyplot as plt
 import cv2 
 
 from glob import glob
@@ -9,7 +10,7 @@ from .get_color_histograms import get_color_features
 from .utils import read_frame, annotations_for_frame
 
 
-def get_pos_and_neg(df, max_car_size=0.1, neg_img_per_frame=10, max_size=40*40, W=1280, H=720, add_other_cars=True, add_other_non_cars=True):
+def get_pos_and_neg(df, max_car_size=0.1, neg_img_per_frame=10, max_size=40*40, W=1280, H=720, add_other_cars=True, add_other_non_cars=True, flip=True):
     train_pos_img = []
     train_neg_img = []
     for frame in range(len(df.values.tolist())):
@@ -22,6 +23,9 @@ def get_pos_and_neg(df, max_car_size=0.1, neg_img_per_frame=10, max_size=40*40, 
                 continue
             new_img = img[y:y+dy, x:x+dx,:]
             train_pos_img.append(new_img)
+            if flip:
+                flipped_img = cv2.flip(new_img, 3)
+                train_pos_img.append(flipped_img)
         cnt = 0
         split_list = [120, 280, 430, 580]
         while cnt < neg_img_per_frame:
@@ -43,17 +47,26 @@ def get_pos_and_neg(df, max_car_size=0.1, neg_img_per_frame=10, max_size=40*40, 
                 new_img = img[y:y+dy, x:x+dx,:] 
                 bin_img[y:y+dy, x:x+dx] += 1
                 train_neg_img.append(new_img)
+                if flip:
+                    flipped_img = cv2.flip(new_img, 3)
+                    train_neg_img.append(flipped_img)
                 cnt += 1
     if add_other_cars: 
         other_car_paths = glob("vehicles/GTI_Far"+"/*") + glob("vehicles/GTI_Right"+"/*") + glob("vehicles/GTI_Left"+"/*") + glob("vehicles/GTI_MiddleClose"+"/*") + glob("vehicles/KITTI_extracted"+"/*")
         for car_path in other_car_paths:    
             img = np.asarray(PIL.Image.open(car_path))
             train_pos_img.append(img)
+            if flip:
+                flipped_img = cv2.flip(img, 3)
+                train_pos_img.append(flipped_img)
     if add_other_non_cars:
         other_non_car_paths = glob("non_vehicles/GTI"+"/*") + glob("non_vehicles/Extras"+"/*")
         for non_car_path in other_non_car_paths:    
             img = np.asarray(PIL.Image.open(non_car_path))
             train_neg_img.append(img)
+            if flip:
+                flipped_img = cv2.flip(img, 3)
+                train_neg_img.append(flipped_img)
     return train_pos_img, train_neg_img
 
 def get_features(train_pos_img, train_neg_img, hog_desc, winSize, use_hog=True, use_spatial=True, use_color=True):

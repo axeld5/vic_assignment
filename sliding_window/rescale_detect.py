@@ -19,10 +19,8 @@ def detect(image, rescale_params, scaler, hog_desc, use_hog, use_color, use_spat
         decisions = clf.predict_proba(features)
         for i in range(len(features)):
             # If region is positive then add some heat
-            if decisions[i][1] > 0.95:
+            if decisions[i][1] > 0.995:
                 htmp.incValOfReg(coords[i])
-            #elif decisions[i][1] < 0.05:
-            #   htmp.decValOfReg(coords[i])
         mask_list.append(cv2.resize(htmp.mask, (wIm, hIm)))
     # Compiling heatmap
     mask = np.zeros((hIm, wIm))
@@ -51,14 +49,14 @@ def compute_mask(mask, threshold, plot):
         plt.show()    
     mask = cv2.inRange(mask, threshold, 255) 
     mask_std = mask.std(ddof=1)
-    if mask_std != 0.0:
-        mask = (mask-mask.mean())/mask_std
     if plot:
         plt.matshow(mask)
         plt.title("thresholded mask with threshold="+str(threshold))
-        plt.show()    
+        plt.show()  
+    """if mask_std != 0.0:
+        mask = (mask-mask.mean())/mask_std     
     try: 
         mask = cv2.inRange(mask, np.max([mask.std(), 1]), np.max(mask))
     except:
-        mask = np.zeros_like(mask)
+        mask = np.zeros_like(mask)"""
     return mask
