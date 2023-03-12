@@ -7,6 +7,8 @@ from glob import glob
 
 from .hog_features import get_hog_features 
 from .get_color_histograms import get_color_features
+from .sift_features import get_sift_features
+from .canny_binning import get_canny_features
 from .utils import read_frame, annotations_for_frame
 
 
@@ -27,25 +29,14 @@ def get_pos_and_neg(df, max_car_size=0.1, neg_img_per_frame=10, max_size=40*40, 
                 flipped_img = cv2.flip(new_img, 3)
                 train_pos_img.append(flipped_img)
         cnt = 0
-        split_list = [120, 280, 430, 580]
         while cnt < neg_img_per_frame:
-            y = int(np.random.choice(np.array(range(120, 580))))
-            if y >= split_list[0] and y <= split_list[1]:
-                dy = 64
-                dx = 64
-                x = int(np.random.choice(W-dx))
-            elif y >= split_list[1] and y <= split_list[2]:
-                dy = 96
-                dx = 96
-                x = int(np.random.choice(W-dx))
-            elif y >= split_list[2] and y <= split_list[3]:
-                dy = 128
-                dx = 128
-                x = int(np.random.choice(W-dx))
+            dy = np.random.choice([128, 192, 256])
+            dx = dy 
+            x = int(np.random.choice(W-dx))
+            y = int(np.random.choice(H-dy))
             bin_patch = bin_img[y:y+dy, x:x+dx]
             if np.mean(bin_patch) <= max_car_size:
                 new_img = img[y:y+dy, x:x+dx,:] 
-                bin_img[y:y+dy, x:x+dx] += 1
                 train_neg_img.append(new_img)
                 if flip:
                     flipped_img = cv2.flip(new_img, 3)
@@ -69,7 +60,7 @@ def get_pos_and_neg(df, max_car_size=0.1, neg_img_per_frame=10, max_size=40*40, 
                 train_neg_img.append(flipped_img)
     return train_pos_img, train_neg_img
 
-def get_features(train_pos_img, train_neg_img, hog_desc, winSize, use_hog=True, use_spatial=True, use_color=True):
+def get_features(train_pos_img, train_neg_img, hog_desc, winSize, use_hog=True, use_spatial=True, use_color=True, use_sift=True, sift_tools=[], use_canny=True):
     train_pos_features = [0]*len(train_pos_img)
     train_neg_features = [0]*len(train_neg_img)
     for i in range(len(train_pos_img)):
@@ -85,6 +76,13 @@ def get_features(train_pos_img, train_neg_img, hog_desc, winSize, use_hog=True, 
         if use_hog:
             hog_features = get_hog_features(hog_desc, new_img, winSize)
             train_features_list.append(hog_features)
+        if use_sift:
+            sift, vocab, vocab_size = sift_tools[0], sift_tools[1], sift_tools[2]
+            sift_features = get_sift_features(sift, vocab, vocab_size, new_img)
+            train_features_list.append(sift_features)
+        if use_canny:
+            canny_features = get_canny_features(new_img)
+            train_features_list.append(canny_features)
         train_pos_features[i] = np.concatenate(train_features_list)
     for i in range(len(train_neg_img)):
         new_img = train_neg_img[i]  
@@ -98,6 +96,13 @@ def get_features(train_pos_img, train_neg_img, hog_desc, winSize, use_hog=True, 
         if use_hog:
             hog_features = get_hog_features(hog_desc, new_img, winSize)
             train_features_list.append(hog_features)
+        if use_sift:
+            sift, vocab, vocab_size = sift_tools[0], sift_tools[1], sift_tools[2]
+            sift_features = get_sift_features(sift, vocab, vocab_size, new_img)
+            train_features_list.append(sift_features)
+        if use_canny:
+            canny_features = get_canny_features(new_img)
+            train_features_list.append(canny_features)
         train_neg_features[i] = np.concatenate(train_features_list)
     return train_pos_features, train_neg_features
 
