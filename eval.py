@@ -16,7 +16,7 @@ from sliding_window.detect import detect
 
 
 if __name__ == "__main__":    
-    df_ground_truth = pd.read_csv('train_copy.csv')
+    df_ground_truth = pd.read_csv('train.csv')
     W = 1280
     H = 720
     N = len(df_ground_truth)
@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     start = time.time()
     clf = XGBClassifier(max_depth=6, learning_rate=0.07, n_estimators=500, colsample_bytree=0.7)
-    clf.load_model('0004.model')
+    clf.load_model('0002.model')
 
     winSize = (64, 64)
     #get hog block
@@ -46,10 +46,8 @@ if __name__ == "__main__":
     threshold = 5
     proba_thresh = 0.93
     proba_thresh_list = np.linspace(0.6, 0.85, 6, endpoint=True)
-    #rescale_params = [0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 3]
-    #rescale_params = [0.25, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 2, 3, 4]
     rescale_params = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
-    do_test = False
+    do_test = True
     if do_test:
         start = time.time()
         plot = True
@@ -65,7 +63,7 @@ if __name__ == "__main__":
             plt.show()
         
         
-        testing = True
+        testing = False
         if testing:
             test_files = sorted(os.listdir('test/'))
             for i in range(10):
@@ -76,7 +74,7 @@ if __name__ == "__main__":
                 plt.imshow(detected)
                 plt.show()
 
-    get_pred = True
+    get_pred = False
     if get_pred:
         test_files = sorted(os.listdir('test/'))
         print(len(test_files))

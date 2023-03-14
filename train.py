@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     #get images block
     start = time.time()
-    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=8, max_size=max_size, 
+    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=6, max_size=max_size, 
                                                    add_other_cars=True, add_other_non_cars=True)
     print(time.time() - start)
     print("imgs secured")
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     start = time.time()
     clf = XGBClassifier(max_depth=6, learning_rate=0.07, n_estimators=500, colsample_bytree=0.7)
     clf.fit(x_train, y_train)
-    clf.save_model('0002.model')
+    clf.save_model('0004.model')
     print(time.time() - start)
     start = time.time()
     y_pred = clf.predict(x_test)

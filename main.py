@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     #get images block
     start = time.time()
-    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=8, max_size=max_size, add_other_cars=True, add_other_non_cars=True, flip=False)
+    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=8, max_size=max_size, add_other_cars=True, add_other_non_cars=True)
     print(time.time() - start)
     print("imgs secured")
 
@@ -82,14 +82,11 @@ if __name__ == "__main__":
     idx = np.random.choice(len(values))
     image = np.asarray(PIL.Image.open(values[idx][0]))
     train_bin_masks = get_bin_masks(df_ground_truth)
-    threshold_list = np.linspace(10, 50, 9, endpoint=True)
-    threshold = 30
-    proba_thresh = 0.5
-    proba_thresh_list = np.linspace(0.6, 0.85, 6, endpoint=True)
-    #rescale_params = [0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 3]
+    threshold = 5
+    proba_thresh = 0.93
     rescale_params = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]
-    do_list = True
-    if not do_list:
+    do_test = True
+    if not do_test:
         start = time.time()
         plot = False
         detected, bounding_boxes = detect(image, rescale_params, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial, use_color=use_color,
@@ -104,7 +101,7 @@ if __name__ == "__main__":
             plt.show()
         
         
-        testing = True
+        testing = False
         if testing:
             test_files = sorted(os.listdir('test/'))
             for i in range(10):
@@ -114,18 +111,6 @@ if __name__ == "__main__":
                                                 clf=clf, threshold=threshold, proba_thresh=proba_thresh, max_size=max_size, plot=True)
                 plt.imshow(detected)
                 plt.show()
-    if do_list: 
-        for threshold in threshold_list: 
-            proba_thresh = 0.65
-            test_files = sorted(os.listdir('test/'))
-            for i in range(10):
-                    idx = np.random.choice(len(test_files))
-                    test_img = np.asarray(PIL.Image.open('test/'+test_files[idx]))
-                    detected, bounding_boxes = detect(test_img, rescale_params, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial, use_color=use_color, 
-                                                      clf=clf, threshold=threshold, proba_thresh=proba_thresh, max_size=max_size, plot=True)
-                    plt.imshow(detected)
-                    plt.title("proba_thresh="+str(proba_thresh)+", threshold="+str(threshold))
-                    plt.show()
 
     get_pred = False
     if get_pred:
