@@ -51,4 +51,11 @@ def compute_mask(mask, threshold, proba_thresh, plot):
         plt.matshow(mask)
         plt.title("thresholded mask with threshold="+str(threshold)+", proba_thresh="+str(proba_thresh))
         plt.show()  
+    mask_std = mask.std(ddof=1)
+    if mask_std != 0.0:
+        mask = (mask-mask.mean())/mask_std     
+    try: 
+        mask = cv2.inRange(mask, np.max([mask.std(), 1]), np.max(mask))
+    except:
+        mask = np.zeros_like(mask)
     return mask
