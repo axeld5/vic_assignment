@@ -6,65 +6,89 @@ import matplotlib.pyplot as plt
 import PIL
 import cv2
 
-from sklearn.svm import SVC, LinearSVC
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
-from sklearn.metrics import f1_score, jaccard_score
+from sklearn.metrics import jaccard_score
+from xgboost import XGBClassifier
 
 from preprocess.utils import run_length_encoding, bounding_boxes_to_mask
-from preprocess.data_info import get_pos_and_neg, get_bin_masks, get_bin_mask_from_bbox_list, get_features
+from preprocess.data_info import get_bin_masks, get_bin_mask_from_bbox_list
 from preprocess.hog_features import return_hog_descriptor
-from preprocess.sift_features import load_vocabulary
 from sliding_window.detect import detect 
-from evaluate_jaccard import evaluate_jaccard
-from ensemble_classifier import EnsembleClassifier
 
-#params we can play on: all params of get_pos_and_neg, neg_max_proba and pos_max_proba
 
-if __name__ == "__main__":
-    #starting block
-    df_ground_truth = pd.read_csv('train.csv')
+if __name__ == "__main__":    
+    df_ground_truth = pd.read_csv('train_copy.csv')
     W = 1280
     H = 720
     N = len(df_ground_truth)
+    max_size=30*30
+
+    start = time.time()
+    clf = XGBClassifier(max_depth=6, learning_rate=0.07, n_estimators=500, colsample_bytree=0.7)
+    clf.load_model('0004.model')
 
     winSize = (64, 64)
     #get hog block
     hog_desc = return_hog_descriptor(winSize)
-    sift = cv2.SIFT_create()
-    vocab_size = 250
-    vocab = vocab = load_vocabulary("vocab.pkl")
-    print("vocab done")
 
-    sift_tools = [sift, vocab, vocab_size]
+    scaler = None
+
     use_hog = True 
-    use_sift = True 
-    use_spatial = True 
+    use_spatial = True
     use_color = True
 
-    #train model block
-    clf = EnsembleClassifier(use_svm=False, use_rf=True, use_xgb=True)
-    clf.load_models()
+    #sliding window block
 
     values = df_ground_truth.values.tolist()
-    image = np.asarray(PIL.Image.open(values[0][0]))
+    idx = np.random.choice(len(values))
+    image = np.asarray(PIL.Image.open(values[idx][0]))
     train_bin_masks = get_bin_masks(df_ground_truth)
+    threshold_list = np.linspace(10, 50, 9, endpoint=True)
+    threshold = 5
+    proba_thresh = 0.93
+    proba_thresh_list = np.linspace(0.6, 0.85, 6, endpoint=True)
+    #rescale_params = [0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 3]
+    #rescale_params = [0.25, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 2, 3, 4]
+    rescale_params = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+    do_test = False
+    if do_test:
+        start = time.time()
+        plot = True
+        detected, bounding_boxes = detect(image, rescale_params, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial, use_color=use_color,
+                                        clf=clf, threshold=threshold, proba_thresh=proba_thresh, max_size=max_size, plot=plot)
+        print(time.time() - start)
+        pred_bin_mask = get_bin_mask_from_bbox_list(bounding_boxes)
+        print("threshold="+str(threshold))
+        print(jaccard_score(train_bin_masks[idx], pred_bin_mask, average="micro"))
+        if plot:
+            plt.imshow(detected)
+            plt.title("threshold="+str(threshold))
+            plt.show()
+        
+        
+        testing = True
+        if testing:
+            test_files = sorted(os.listdir('test/'))
+            for i in range(10):
+                idx = np.random.choice(len(test_files))
+                test_img = np.asarray(PIL.Image.open('test/'+test_files[idx]))
+                detected, bounding_boxes = detect(test_img, rescale_params, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial, use_color=use_color,
+                                                clf=clf, threshold=threshold, proba_thresh=proba_thresh, max_size=max_size, plot=True)
+                plt.imshow(detected)
+                plt.show()
 
-    step = 25
-    neg_max_proba = 0.9
-    pos_max_proba = 0.1
+    get_pred = True
+    if get_pred:
+        test_files = sorted(os.listdir('test/'))
+        print(len(test_files))
+        rows = []
 
-    start = time.time()
-    detected, bounding_boxes = detect(image, hog_desc, sift_tools, use_hog=use_hog, use_spatial=use_spatial, use_sift=use_sift, use_color=use_color,
-                        clf=clf, winSize=winSize, neg_max_proba=neg_max_proba, pos_max_proba=pos_max_proba, step=step)
-    print(time.time() - start)
-    pred_bin_mask = get_bin_mask_from_bbox_list(bounding_boxes)
-    print(jaccard_score(train_bin_masks[0], pred_bin_mask, average="micro"))
-    plt.imshow(detected)
-    plt.show()
-
-    n_test = 100 
-    img_list = [np.asarray(PIL.Image.open(values[i*5][0])) for i in range(n_test)]
-    train_bin_mask = [train_bin_masks[i*5] for i in range(n_test)]
-    print(evaluate_jaccard(img_list, train_bin_mask, hog_desc, sift_tools, use_hog=use_hog, use_spatial=use_spatial, use_sift=use_sift, use_color=use_color,
-                        clf=clf, winSize=winSize, neg_max_proba=neg_max_proba, pos_max_proba=pos_max_proba, step=step))
+        for i, file_name in enumerate(test_files):
+            image = np.asarray(PIL.Image.open('test/'+file_name))
+            _, bounding_boxes = detect(image, rescale_params, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial, use_color=use_color,
+                                    clf=clf, threshold=threshold, proba_thresh=proba_thresh, max_size=max_size, plot=False)
+            rle = run_length_encoding(bounding_boxes_to_mask(bounding_boxes, H, W))
+            rows.append(['test/' + file_name, rle])
+            if i%10 == 0:
+                print(i)
+        df_prediction = pd.DataFrame(columns=['Id', 'Predicted'], data=rows).set_index('Id')
+        df_prediction.to_csv('predicted_cars.csv')

@@ -1,34 +1,31 @@
 import cv2 
+import numpy as np 
+import matplotlib.pyplot as plt 
 
-from .slide_extract import slideExtract 
+from .extract import slideExtract 
 from .heatmap import Heatmap
 
-def detect(image, hog_desc, sift_tools, use_hog, use_sift, use_color, use_spatial, clf, winSize=(64, 64), neg_max_proba=0.5, pos_max_proba=0.5, step=30, max_size=40*40):
+def detect(image, rescale_params, hog_desc, use_hog, use_color, use_spatial,
+           clf, threshold=4, proba_thresh=0.9, max_size=30*30, plot=True):
     
     # Extracting features and initalizing heatmap
-    coords,features = slideExtract(image, hog_desc=hog_desc, sift_tools=sift_tools, winSize=winSize, step=step, 
-                                   use_hog=use_hog, use_sift=use_sift, use_spatial=use_spatial, use_color=use_color)
-    htmp = Heatmap(image)
-    
-    for i in range(len(features)):
-        # If region is positive then add some heat
-        try:
-            proba = clf.predict_proba([features[i]])
-            if proba[0][0] < pos_max_proba:
+    mask_list = []
+    hIm, wIm = image.shape[:2]
+    for param in rescale_params:
+        coords,features = slideExtract(image, rescale_param=param, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial, use_color=use_color)
+        scaled_im = cv2.resize(image, (int(wIm*param), int(hIm*param)))
+        htmp = Heatmap(scaled_im)
+        decisions = clf.predict_proba(features)
+        for i in range(len(features)):
+            # If region is positive then add some heat
+            if decisions[i][1] > proba_thresh:
                 htmp.incValOfReg(coords[i])
-                # Else remove some heat
-            elif proba[0][0] > neg_max_proba:
-                htmp.decValOfReg(coords[i])
-        except: 
-            decision = clf.predict([features[i]])
-            if decision[0] == 1:
-                htmp.incValOfReg(coords[i])
-                # Else remove some heat
-            else:
-                htmp.decValOfReg(coords[i])
-
+        mask_list.append(cv2.resize(htmp.mask, (wIm, hIm)))
     # Compiling heatmap
-    mask = htmp.compileHeatmap()
+    mask = np.zeros((hIm, wIm))
+    for mask_elem in mask_list:
+        mask += mask_elem
+    mask = compute_mask(mask, threshold, proba_thresh, plot)
     cont,_ = cv2.findContours(mask,1,2)[:2]
     bounding_boxes = []
     for c in cont:
@@ -40,3 +37,25 @@ def detect(image, hog_desc, sift_tools, use_hog, use_sift, use_color, use_spatia
         image = cv2.rectangle(image,(x_c,y_c),(x_c+w,y_c+h),(255),2)
     
     return image, bounding_boxes
+
+def compute_mask(mask, threshold, proba_thresh, plot):
+    mask = np.clip(mask, 0, 255)
+    mask[0:120, :] = np.min(mask)
+    mask[520:720, :] = np.min(mask)
+    if plot:
+        plt.matshow(mask)
+        plt.title("mask with threshold="+str(threshold)+", proba_thresh="+str(proba_thresh))
+        plt.show()    
+    mask = cv2.inRange(mask, threshold, 255) 
+    mask_std = mask.std(ddof=1)
+    if plot:
+        plt.matshow(mask)
+        plt.title("thresholded mask with threshold="+str(threshold)+", proba_thresh="+str(proba_thresh))
+        plt.show()  
+    if mask_std != 0.0:
+        mask = (mask-mask.mean())/mask_std     
+    try: 
+        mask = cv2.inRange(mask, np.max([mask.std(), 1]), np.max(mask))
+    except:
+        mask = np.zeros_like(mask)
+    return mask

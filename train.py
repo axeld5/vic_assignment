@@ -1,25 +1,15 @@
 import numpy as np
 import pandas as pd
-import os
 import time
-import matplotlib.pyplot as plt 
-import PIL
 import cv2
 
-from sklearn.svm import SVC, LinearSVC
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
-from sklearn.metrics import f1_score, jaccard_score
+from sklearn.metrics import f1_score
+from xgboost import XGBClassifier
 
-from preprocess.utils import run_length_encoding, bounding_boxes_to_mask
-from preprocess.data_info import get_pos_and_neg, get_bin_masks, get_bin_mask_from_bbox_list, get_features
+from preprocess.data_info import get_pos_and_neg, get_features
 from preprocess.hog_features import return_hog_descriptor
-from preprocess.sift_features import build_vocabulary
-from sliding_window.detect import detect 
-from evaluate_jaccard import evaluate_jaccard
-from ensemble_classifier import EnsembleClassifier
 
-#params we can play on: all params of get_pos_and_neg, neg_max_proba and pos_max_proba
 
 if __name__ == "__main__":
     #starting block
@@ -27,28 +17,29 @@ if __name__ == "__main__":
     W = 1280
     H = 720
     N = len(df_ground_truth)
+    max_size=30*30
 
     #get images block
-    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=12, max_size=40*40, add_cars_test=True, add_cars_train=True, add_other_cars=False)
+    start = time.time()
+    train_pos_img, train_neg_img = get_pos_and_neg(df_ground_truth, max_car_size=0, neg_img_per_frame=8, max_size=max_size, 
+                                                   add_other_cars=True, add_other_non_cars=True)
+    print(time.time() - start)
+    print("imgs secured")
+
 
     winSize = (64, 64)
     #get hog block
     hog_desc = return_hog_descriptor(winSize)
-    sift = cv2.SIFT_create()
-    vocab_size = 250
-    vocab = build_vocabulary(sift, train_pos_img + train_neg_img, vocab_size=vocab_size)
-    print("vocab done")
 
-    sift_tools = [sift, vocab, vocab_size]
     use_hog = True 
-    use_sift = True 
-    use_spatial = True 
+    use_spatial = False
     use_color = True
 
     #apply hog block
-    train_pos_features, train_neg_features = get_features(train_pos_img, train_neg_img, hog_desc, sift_tools=sift_tools, winSize=winSize,
-                                                          use_hog=use_hog, use_sift=use_sift, use_spatial=use_spatial, use_color=use_color)
-
+    start = time.time()
+    train_pos_features, train_neg_features = get_features(train_pos_img, train_neg_img, hog_desc, winSize=winSize,
+                                                          use_hog=use_hog, use_spatial=use_spatial, use_color=use_color)
+    print(time.time() - start)
     #get dataset block
     train_pos_labels = np.ones(len(train_pos_img))
     print(len(train_pos_labels))
@@ -68,18 +59,13 @@ if __name__ == "__main__":
     print(y_test.shape)
 
     #train model block
-
     
     start = time.time()
-    #clf = RandomForestClassifier().fit(x_train, y_train)
-    #clf = SVC().fit(x_train, y_train)
-    #clf = SVC(probability=True).fit(x_train, y_train)
-    #clf = LinearSVC(max_iter=10000).fit(x_train, y_train)
-    # We'll use Cross Validation Grid Search to find best parameters.
-    # Classifier will be trained using each parameter 
-    clf = HistGradientBoostingClassifier().fit(x_train, y_train)
-    #clf = EnsembleClassifier(True, True, True)
-    clf.fit(x_train,y_train)
+    clf = XGBClassifier(max_depth=6, learning_rate=0.07, n_estimators=500, colsample_bytree=0.7)
+    clf.fit(x_train, y_train)
+    clf.save_model('0002.model')
     print(time.time() - start)
+    start = time.time()
     y_pred = clf.predict(x_test)
+    print(time.time() - start)
     print("Accuracy score of model is ",f1_score(y_pred=y_pred,y_true=y_test)*100)
