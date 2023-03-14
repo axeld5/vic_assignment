@@ -2,10 +2,8 @@ import cv2
 import numpy as np
 
 from .get_color_histograms import get_color_features
-from .sift_features import get_sift_features
-from .canny_binning import get_canny_features
 
-def slideExtract(img, rescale_param, hog_desc, use_hog=True, use_spatial=True, use_color=True, use_sift=True, sift_tools=[], use_canny=True):
+def slideExtract(img, rescale_param, hog_desc, use_hog=True, use_spatial=True, use_color=True):
     
     # We'll store coords and features in these lists
     coords = []
@@ -36,13 +34,6 @@ def slideExtract(img, rescale_param, hog_desc, use_hog=True, use_spatial=True, u
             if use_hog:
                 hog_of_window = hog_desc.compute(window)
                 features_list.append(hog_of_window)
-            if use_sift: 
-                sift, vocab, vocab_size = sift_tools[0], sift_tools[1], sift_tools[2]
-                sift_of_window = get_sift_features(sift, vocab, vocab_size, window)
-                features_list.append(sift_of_window)
-            if use_canny:
-                canny_of_window = get_canny_features(window)
-                features_list.append(canny_of_window)
             features_of_window = np.concatenate(features_list)
             coords.append((w1,w2,h1,h2))
             features.append(features_of_window)

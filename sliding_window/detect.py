@@ -1,21 +1,18 @@
 import cv2 
 import numpy as np 
 import matplotlib.pyplot as plt 
-import time
 
-from .rescale_extract import slideExtract 
-from .rescale_heatmap import Heatmap
+from .extract import slideExtract 
+from .heatmap import Heatmap
 
-def detect(image, rescale_params, scaler, hog_desc, use_hog, use_color, use_spatial, use_sift, sift_tools, use_canny, 
+def detect(image, rescale_params, hog_desc, use_hog, use_color, use_spatial,
            clf, threshold=4, proba_thresh=0.9, max_size=30*30, plot=True):
     
     # Extracting features and initalizing heatmap
     mask_list = []
     hIm, wIm = image.shape[:2]
-    for j, param in enumerate(rescale_params):
-        coords,features = slideExtract(image, rescale_param=param, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial, use_color=use_color, 
-                                       use_sift=use_sift, sift_tools=sift_tools, use_canny=use_canny)
-        features = scaler.transform(features)
+    for param in rescale_params:
+        coords,features = slideExtract(image, rescale_param=param, hog_desc=hog_desc, use_hog=use_hog, use_spatial=use_spatial, use_color=use_color)
         scaled_im = cv2.resize(image, (int(wIm*param), int(hIm*param)))
         htmp = Heatmap(scaled_im)
         decisions = clf.predict_proba(features)
@@ -44,7 +41,7 @@ def detect(image, rescale_params, scaler, hog_desc, use_hog, use_color, use_spat
 def compute_mask(mask, threshold, proba_thresh, plot):
     mask = np.clip(mask, 0, 255)
     mask[0:120, :] = np.min(mask)
-    mask[580:720, :] = np.min(mask)
+    mask[520:720, :] = np.min(mask)
     if plot:
         plt.matshow(mask)
         plt.title("mask with threshold="+str(threshold)+", proba_thresh="+str(proba_thresh))
@@ -55,10 +52,10 @@ def compute_mask(mask, threshold, proba_thresh, plot):
         plt.matshow(mask)
         plt.title("thresholded mask with threshold="+str(threshold)+", proba_thresh="+str(proba_thresh))
         plt.show()  
-    """if mask_std != 0.0:
+    if mask_std != 0.0:
         mask = (mask-mask.mean())/mask_std     
     try: 
         mask = cv2.inRange(mask, np.max([mask.std(), 1]), np.max(mask))
     except:
-        mask = np.zeros_like(mask)"""
+        mask = np.zeros_like(mask)
     return mask

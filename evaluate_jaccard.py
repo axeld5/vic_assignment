@@ -2,8 +2,8 @@ import time
 
 from sklearn.metrics import jaccard_score
 
-from preprocess.persp_data_info import get_bin_masks, get_bin_mask_from_bbox_list
-from sliding_window.rescale_detect import detect 
+from preprocess.data_info import get_bin_masks, get_bin_mask_from_bbox_list
+from sliding_window.detect import detect 
 
 def evaluate_jaccard(img_list, train_bin_masks, rescale_params, scaler, hog_desc, use_hog, use_spatial, use_color,
                         clf, threshold, max_size=30*30, plot=False):

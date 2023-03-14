@@ -11,7 +11,3 @@ class Heatmap():
     def incValOfReg(self, coords):
         w1,w2,h1,h2 = coords
         self.mask[h1:h2,w1:w2] = self.mask[h1:h2,w1:w2] + 1
-
-    def decValOfReg(self, coords):
-        w1,w2,h1,h2 = coords
-        self.mask[h1:h2,w1:w2] = self.mask[h1:h2,w1:w2] - 1

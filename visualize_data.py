@@ -30,15 +30,29 @@ def get_height_histo(df, W=1280, H=720):
     plt.show()
 
 def get_img_info(df, W=1280, H=720):
-    img_info = {"avg_width":[], "avg_height":[]}
+    img_info = {"width":[], "height":[]}
+    car_width = np.zeros(W)
+    car_height = np.zeros(H)
     for frame in range(len(df.values.tolist())):
         img = np.asarray(read_frame(df, frame))
         bbs = annotations_for_frame(df, frame)
         for x, y, dx, dy in bbs:
             new_img = img[y:y+dy, x:x+dx, :]
-            img_info["avg_height"].append(new_img.shape[0])
-            img_info["avg_width"].append(new_img.shape[1])
-    return np.mean(np.array(img_info["avg_height"])), np.argmax(np.array(img_info["avg_height"])), np.mean(np.array(img_info["avg_width"])), np.argmax(np.array(img_info["avg_width"]))
+            height = new_img.shape[0]
+            width = new_img.shape[1]
+            img_info["height"].append(height)
+            img_info["width"].append(width)
+            car_height[height] += 1 
+            car_width[width] += 1
+    x_0 = np.arange(H) 
+    x_1 = np.arange(W)
+    fig, ax = plt.subplots(1, 2)
+    ax[0].plot(x_0, car_height)
+    ax[0].set_title("car heights")
+    ax[1].plot(x_1, car_width)
+    ax[1].set_title("car widths")
+    plt.show() 
+    return np.mean(np.array(img_info["height"])), np.max(np.array(img_info["height"])), np.mean(np.array(img_info["width"])), np.max(np.array(img_info["width"]))
 
 
 
