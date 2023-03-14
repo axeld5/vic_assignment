@@ -47,7 +47,6 @@ def compute_mask(mask, threshold, proba_thresh, plot):
         plt.title("mask with threshold="+str(threshold)+", proba_thresh="+str(proba_thresh))
         plt.show()    
     mask = cv2.inRange(mask, threshold, 255) 
-    mask_std = mask.std(ddof=1)
     if plot:
         plt.matshow(mask)
         plt.title("thresholded mask with threshold="+str(threshold)+", proba_thresh="+str(proba_thresh))
