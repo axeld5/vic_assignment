@@ -1,9 +1,7 @@
 train
 test
-cars_test
-cars_train
 __pycache__
-predicted_cars.csv
 predicted_cars_old.csv
+predicted_cars.csv
 non_vehicles
 vehicles 
