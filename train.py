@@ -31,7 +31,7 @@ if __name__ == "__main__":
     #get hog block
     hog_desc = return_hog_descriptor(winSize)
 
-    use_hog = True 
+    use_hog = False
     use_spatial = False
     use_color = True
 
